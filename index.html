@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>52 Weeks Challenge</title>
+	<meta author="kfa">
+	<script type="text/javascript" src="angular.min.js"></script>
+	<link rel="stylesheet" type="text/css" href="bootstrap.min.css">
+</head>
+<body>
+<br>
+<div class="col-md-5 col-md-offset-3">
+	<div ng-app="ch" ng-controller="chCtrl">
+			<h1>52 Weeks Challenge</h1>
+			<li class="list-group-item">
+				<div class="input-group">
+			       	<div class="input-group-btn">
+			       		<input type="text" style="display: none" ng-model="username">
+			        	<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{ username }} <span class="caret"></span></button>
+			        	<ul class="dropdown-menu">
+				          	<li  ng-repeat="user in usernames" >
+				          		<div class="btn-group-btn">
+				          			<button class="btn btn-danger btn-sm" ng-click="removeUser(user)">x</button> 
+				          			<a class="btn btn-sm" ng-click="clickUser(user)">{{ user }}</a>
+				          		</div>
+				          		
+				          	</li>
+				          	<li><input type="text" class="form-control" placeholder="New Username" ng-model="new" ng-change="username = new" ng-click="exists = false"></li>
+			        	</ul>
+			      	</div><!-- /btn-group -->
+					<input type="number" ng-model="ch" class="form-control col-md-2" ng-change="compute()" ng-disabled="user.week > 0">
+			      	<div class="input-group-btn">
+			      		<button type="button" class="btn btn-primary" ng-click="addUser()" ng-style="{ 'display' : (exists != false) ? 'none' : 'all' }"><span class="">Add</span></button>
+			      		<button type="button" class="btn btn-success" ng-click="setUserData()" ng-style="{ 'display' : (exists == false) ? 'none' : 'all' }" ng-disabled="user.week > 0"><span class="">Save</span></button>
+
+			      	</div>
+			    </div><!-- /input-group -->
+			</li>
+			<div style="height: 250px; overflow-y: scroll; border: 1px solid #ccc;">
+				<ul class="list-group">
+					<li ng-style="{ 'display' : (ch <= 0) ? 'none' : 'all' }" ng-repeat="x in list" class="list-group-item {{ weeks[$index][3] }}" >
+						<p style="margin: 0px; padding: 0px">
+							<strong>{{ 'Week ' +  weeks[$index][2]  }} </strong> <button class="btn btn-xs btn-success" ng-click="setUserData(weeks[$index][2])" ng-style="{ 'display' : (user.week > $index) ? 'none' : 'all' }"> Paid</button>
+							<span class="pull-right"><strong>{{ x | currency: "Php "}} </strong></span>
+						</p>
+						<small style="color: #706F6F">
+							{{ weeks[$index][0] }} - {{ weeks[$index][1] }}
+							<span class="pull-right text-muted"><small>{{ subtotal[$index] | currency : ''}}</small></span>
+						</small>
+					</li> 
+				</ul>
+			</div>
+			<li class="list-group-item">
+				
+				<span class="pull-right">Grand Total: <strong>{{ total | currency: "Php "}}</strong></span>
+				<div class="clearfix"></div>
+			</li>
+			<li class="list-group-item">
+				You've earned <strong>{{ paid | currency: "Php " }}</strong>  <br>
+				You should have earned <strong>{{ currentTotal | currency: "Php "}}</strong> by now. <br>
+				You need <strong>{{ currentTotal - paid | currency: "Php "}}</strong> to keep up with the challenge! <br>
+
+				Good luck!
+			</li>
+	</div>
+</div>
+
+
+<script type="text/javascript" src="jquery.min.js"></script>
+<script type="text/javascript" src="angular-local-storage.js"></script>
+<script type="text/javascript" src="bootstrap.min.js"></script>
+<script type="text/javascript" src="moment.js"></script>
+<script type="text/javascript">
+
+	var app = angular.module('ch', ['LocalStorageModule']);
+	app.config(function (localStorageServiceProvider) {
+	  localStorageServiceProvider
+	    .setPrefix('kfa52WC');
+	});
+
+	app.controller('chCtrl', function($scope, $filter, localStorageService){
+
+		$scope.list = [];
+		$scope.total = 0;
+		$scope.currentTotal = 0;
+		$scope.subtotal = [];
+		$scope.paid = 0;
+
+		/*=============================================
+		=            Local Storage / Cache            =
+		=============================================*/
+
+		$scope.exists = false;
+		$scope.user = {
+				'user' 		: $scope.username,
+				'amount'	: $scope.ch,
+				'week'		: 0,
+			};			
+
+		$scope.clickUser = function(user){
+			$scope.username = user;
+			$scope.exists = true;
+			$scope.user = $scope.getUserData();
+
+			if($scope.user != null){
+				if($scope.user.amount > 0){
+					$scope.ch = $scope.user.amount;
+				}else{
+					$scope.ch = 0;
+				}
+			}
+
+			$scope.compute();
+		}
+		
+		// Checks if current browser supports Local Storage
+		if(!localStorageService.isSupported){
+			alert('Local Storage is not supported by your browser. This will use your cache instead.')
+		}
+		
+		$scope.usernames = localStorageService.get('usernames');
+		if($scope.usernames == null)
+			$scope.usernames = [];
+
+		// addUser
+		$scope.addUser = function(){
+
+			$scope.usernames = $scope.getUsers();
+			
+			if($.inArray($scope.username, $scope.usernames) > -1){
+				alert('Username exists already! Try another username.');
+				return false;
+
+			}else{
+				$scope.usernames.push($scope.username);
+				$scope.setUserData(0);
+				$scope.exists = true;
+
+				return localStorageService.set('usernames', $scope.usernames);
+
+			}
+
+		}
+
+		$scope.getUsers = function(){
+
+			if(localStorageService.get('usernames') == null){
+				return [];
+			}
+
+			return localStorageService.get('usernames');
+
+		}
+
+		$scope.setUserData = function($week){
+			var data = {
+				'user' 		: $scope.username,
+				'amount'	: $scope.ch,
+				'week'		: $week,
+			};			
+
+			var success = localStorageService.set($scope.username + 'kfa52WC' + moment().format('YYYY'), data);
+
+			if(success){
+				$scope.user = $scope.getUserData();
+			}
+
+			$scope.compute();
+
+			return success;
+		}
+
+		$scope.getUserData = function(){
+
+			return localStorageService.get($scope.username + 'kfa52WC' + moment().format('YYYY'));
+
+		}
+
+		$scope.removeUser = function(user){
+			localStorageService.remove(user + 'kfa52WC' + moment().format('YYYY'));
+
+			var index = $scope.bdays.indexOf(user);
+  			$scope.usernames = $scope.usernames.splice(index, 1);     
+  			localStorageService.set('usernames', $scope.usernames);
+
+  			$scope.username = '';
+  			$scope.ch = 0;
+		}
+
+		/*=====  End of Local Storage / Cache  ======*/
+
+		$scope.compute = function(){
+			$scope.list = [];
+			$scope.subtotal = [];
+			$scope.total = 0;
+
+			var i = 0;
+			for(i = 1; i <= 52; i++){
+				$scope.list.push(i * $scope.ch);
+				$scope.total += i * $scope.ch;
+
+				if(moment(moment.now()).format('w') >= i){
+					$scope.currentTotal = $scope.total;
+				}
+
+				if($scope.user.week >= i){
+					$scope.paid = $scope.total;
+				}
+
+				$scope.subtotal.push($scope.total);
+			}
+		};
+
+		var year = eval((new Date()).getYear() - 1);
+				
+		$scope.weeks = [];
+		
+		// var d = moment().format('2016-12-31')
+		var d = moment(moment().format('YYYY')).add(0, 'week').startOf('week').format('MMM D, YYYY')
+		for(var j = 0; j < 52; j++){
+			var range = [];
+			
+			// Week Start
+			range.push(moment(d).format('MMM D, YYYY'));
+
+			// Week End
+			d = moment(d).add(6, 'day');
+			range.push(moment(d).format('MMM D, YYYY'));
+			
+			// Week Number
+			range.push(moment(d).format('w'));
+
+			// List group item class
+			if(moment(moment.now()).format('w') > j+1){
+				var user = $scope.getUserData();
+				if(user != null){
+					if(user.week <= j+1)
+						range.push('list-group-item-warning');
+					else
+						range.push('list-group-item-success');
+				}else{
+					range.push('list-group-item-warning');
+				}
+
+			}else if(moment(moment.now()).format('w') == j+1){
+
+				range.push('list-group-item-info');
+
+			}
+
+			// Start, End
+			$scope.weeks.push(range);
+			// Start of next week
+			d = moment(d).add(1, 'day');
+		}
+
+		$scope.getDate = function($index){
+			return $scope.weeks[$index][0];
+		}
+
+	});
+	
+	$('.dropdown-toggle').dropdown();
+
+	
+</script>
+</body>
+</html>
