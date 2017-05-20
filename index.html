@@ -37,9 +37,9 @@
 			</li>
 			<div style="height: 250px; overflow-y: scroll; border: 1px solid #ccc;">
 				<ul class="list-group">
-					<li ng-style="{ 'display' : (ch <= 0) ? 'none' : 'all' }" ng-repeat="x in list" class="list-group-item {{ weeks[$index][3] }}" >
+					<li ng-style="{ 'display' : (ch <= 0) ? 'none' : 'all' }" ng-repeat="x in list" class="list-group-item {{ weeks[$index][3] }} " >
 						<p style="margin: 0px; padding: 0px">
-							<strong>{{ 'Week ' +  weeks[$index][2]  }} </strong> <button class="btn btn-xs btn-success" ng-click="setUserData(weeks[$index][2])" ng-style="{ 'display' : (user.week > $index) ? 'none' : 'all' }"> Paid</button>
+							<strong>{{ 'Week ' +  weeks[$index][2]  }} </strong> <button class="btn btn-xs btn-success" ng-click="setUserData(weeks[$index][2])" ng-style="{ 'display' : (user.week > $index) ? 'none' : 'all' }" ng-disabled="weeks[$index][1] == ''"> Paid</button>
 							<span class="pull-right"><strong>{{ x | currency: "Php "}} </strong></span>
 						</p>
 						<small style="color: #706F6F">
@@ -139,6 +139,8 @@
 
 			}
 
+			$scope.new = '';
+
 		}
 
 		$scope.getUsers = function(){
@@ -178,8 +180,8 @@
 		$scope.removeUser = function(user){
 			localStorageService.remove(user + 'kfa52WC' + moment().format('YYYY'));
 
-			var index = $scope.bdays.indexOf(user);
-  			$scope.usernames = $scope.usernames.splice(index, 1);     
+			var index = $scope.usernames.indexOf(user);
+  			$scope.usernames.splice(index, 1);     
   			localStorageService.set('usernames', $scope.usernames);
 
   			$scope.username = '';
@@ -208,50 +210,57 @@
 
 				$scope.subtotal.push($scope.total);
 			}
+
+			$scope.weeks = $scope.listWeeks();
 		};
-
-		var year = eval((new Date()).getYear() - 1);
-				
-		$scope.weeks = [];
 		
-		// var d = moment().format('2016-12-31')
-		var d = moment(moment().format('YYYY')).add(0, 'week').startOf('week').format('MMM D, YYYY')
-		for(var j = 0; j < 52; j++){
-			var range = [];
-			
-			// Week Start
-			range.push(moment(d).format('MMM D, YYYY'));
+		$scope.listWeeks = function(){
+			var weeks = [];
+			var year = eval((new Date()).getYear() - 1);
+			// var d = moment().format('2016-12-31')
+			var d = moment(moment().format('YYYY')).add(0, 'week').startOf('week').format('MMM D, YYYY')
+			for(var j = 0; j < 52; j++){
+				var range = [];
+				
+				// Week Start
+				range.push(moment(d).format('MMM D, YYYY'));
 
-			// Week End
-			d = moment(d).add(6, 'day');
-			range.push(moment(d).format('MMM D, YYYY'));
-			
-			// Week Number
-			range.push(moment(d).format('w'));
+				// Week End
+				d = moment(d).add(6, 'day');
+				range.push(moment(d).format('MMM D, YYYY'));
+				
+				// Week Number
+				range.push(moment(d).format('w'));
 
-			// List group item class
-			if(moment(moment.now()).format('w') > j+1){
-				var user = $scope.getUserData();
-				if(user != null){
-					if(user.week <= j+1)
-						range.push('list-group-item-warning');
-					else
-						range.push('list-group-item-success');
-				}else{
-					range.push('list-group-item-warning');
+				// List group item class
+				if(moment(moment.now()).format('w') > j+1){
+					var user = $scope.getUserData();
+
+					if(user != null){
+						if(user.week > j)
+							range.push('list-group-item-success');
+						else
+							range.push('list-group-item-danger');
+					}else{
+						range.push('list-group-item-danger');
+					}
+
+				}else if(moment(moment.now()).format('w') == j+1){
+
+					range.push('list-group-item-info');
+
 				}
 
-			}else if(moment(moment.now()).format('w') == j+1){
-
-				range.push('list-group-item-info');
-
+				// Start, End
+				weeks.push(range);
+				// Start of next week
+				d = moment(d).add(1, 'day');
 			}
 
-			// Start, End
-			$scope.weeks.push(range);
-			// Start of next week
-			d = moment(d).add(1, 'day');
+			return weeks;
 		}
+
+		$scope.weeks = $scope.listWeeks();
 
 		$scope.getDate = function($index){
 			return $scope.weeks[$index][0];
